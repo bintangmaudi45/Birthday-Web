@@ -300,24 +300,28 @@ export function SoundProvider({
   // =====================================================
 
   const unlock =
-    useCallback(() => {
-      const ctx =
-        ensureContext();
+  useCallback(() => {
+    const ctx =
+      ensureContext();
 
-      if (
-        ctx &&
-        ctx.state === 'suspended'
-      ) {
-        ctx.resume().catch(() => {});
-      }
+    if (
+      ctx &&
+      ctx.state === 'suspended'
+    ) {
+      ctx.resume().catch(() => {});
+    }
 
-      unlockedRef.current =
-        true;
+    unlockedRef.current = true;
 
-      console.log(
-        '🔓 Audio unlocked'
-      );
-    }, [ensureContext]);
+    // Start website background music after user interaction
+    if (musicEnabledRef.current) {
+      startMusic();
+    }
+
+    console.log(
+      '🔓 Audio unlocked'
+    );
+  }, [ensureContext, startMusic]);
 
   // =====================================================
   // PLAY SFX TONE
