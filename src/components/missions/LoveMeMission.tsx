@@ -27,8 +27,65 @@ export default function LoveMeMission({ onComplete }: Props) {
   const [noPressed, setNoPressed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef<number[]>([]);
+  const playYesSound = useCallback(() => {
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  const ctx = new AudioContextClass();
+
+  const now = ctx.currentTime;
+
+  const notes = [523.25, 659.25, 783.99];
+
+  notes.forEach((frequency, index) => {
+    const oscillator = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(frequency, now + index * 0.08);
+
+    gain.gain.setValueAtTime(0, now + index * 0.08);
+    gain.gain.linearRampToValueAtTime(
+      0.16,
+      now + index * 0.08 + 0.02
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      now + index * 0.08 + 0.55
+    );
+
+    oscillator.connect(gain);
+    gain.connect(ctx.destination);
+
+    oscillator.start(now + index * 0.08);
+    oscillator.stop(now + index * 0.08 + 0.6);
+  });
+}, []);
+
+const playNoSound = useCallback(() => {
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  const ctx = new AudioContextClass();
+
+  const now = ctx.currentTime;
+
+  const oscillator = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  oscillator.type = 'triangle';
+
+  oscillator.frequency.setValueAtTime(420, now);
+  oscillator.frequency.exponentialRampToValueAtTime(180, now + 0.22);
+
+  gain.gain.setValueAtTime(0.18, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+  oscillator.connect(gain);
+  gain.connect(ctx.destination);
+
+  oscillator.start(now);
+  oscillator.stop(now + 0.32);
+}, []);
 
   const handleNo = useCallback(() => {
+    playNoSound();
     setNoPressed(true);
     const nextIndex = Math.min(promptIndex + 1, PROMPTS.length - 1);
     setPromptIndex(nextIndex);
@@ -51,10 +108,12 @@ export default function LoveMeMission({ onComplete }: Props) {
     if (nextIndex >= PROMPTS.length - 1) {
       setNoOpacity(0);
     }
-  }, [promptIndex]);
+  }, [promptIndex, playNoSound]);
 
   const handleYes = useCallback(() => {
-    if (phase !== 'playing') return;
+  if (phase !== 'playing') return;
+
+  playYesSound();
     const responsePhase = noPressed ? 'knew_it' : 'quick';
     setPhase(responsePhase);
     timersRef.current.push(
@@ -66,7 +125,7 @@ export default function LoveMeMission({ onComplete }: Props) {
       }, 6500),
       window.setTimeout(() => onComplete(), 8500)
     );
-  }, [phase, noPressed, onComplete]);
+  }, [phase, noPressed, onComplete, playYesSound]);
 
   const buttonBase =
     'select-none rounded-full border backdrop-blur-sm transition-all duration-500 font-[var(--font-display)] uppercase tracking-[0.25em] active:scale-90';
