@@ -4,6 +4,7 @@ import { fileURLToPath, URL } from 'node:url';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/Birthday-Web/',
   plugins: [react()],
   resolve: {
     alias: {
