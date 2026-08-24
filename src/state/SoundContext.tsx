@@ -21,59 +21,77 @@ type SoundType =
 interface SoundState {
   sfxEnabled: boolean;
   musicEnabled: boolean;
+
   toggleSfx: () => void;
   toggleMusic: () => void;
+
   play: (type: SoundType) => void;
   unlock: () => void;
+
+  stopMusic: () => void;
+  resumeMusic: () => void;
 }
 
 const SFX_KEY = 'universe-sfx';
 const MUSIC_KEY = 'universe-music';
 
-// =====================================================
-// BACKGROUND MUSIC
-// File:
-// public/assets/birthday-song.mp3
-// =====================================================
-const MUSIC_FILE = '/assets/birthday-song.mp3';
-
+const MUSIC_FILE = `${import.meta.env.BASE_URL}assets/birthday-song.mp3`;
 const MUSIC_VOLUME = 0.25;
 
-const SoundContext = createContext<SoundState | null>(null);
+const SoundContext =
+  createContext<SoundState | null>(null);
 
 export function SoundProvider({
   children,
 }: {
   children: ReactNode;
 }) {
-  const [sfxEnabled, setSfxEnabled] = useState(true);
-  const [musicEnabled, setMusicEnabled] = useState(true);
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [sfxEnabled, setSfxEnabled] =
+    useState(true);
 
-  const ctxRef = useRef<AudioContext | null>(null);
-  const masterGainRef = useRef<GainNode | null>(null);
-  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const [musicEnabled, setMusicEnabled] =
+    useState(true);
 
-  const unlockedRef = useRef(false);
-  const musicEnabledRef = useRef(true);
+  const ctxRef =
+    useRef<AudioContext | null>(null);
+
+  const masterGainRef =
+    useRef<GainNode | null>(null);
+
+  const musicRef =
+    useRef<HTMLAudioElement | null>(null);
+
+  const unlockedRef =
+    useRef(false);
+
+  const musicEnabledRef =
+    useRef(true);
 
   // =====================================================
-  // LOAD SAVED SETTINGS
+  // LOAD SETTINGS
   // =====================================================
+
   useEffect(() => {
     try {
-      const savedSfx = localStorage.getItem(SFX_KEY);
-      const savedMusic = localStorage.getItem(MUSIC_KEY);
+      const savedSfx =
+        localStorage.getItem(SFX_KEY);
+
+      const savedMusic =
+        localStorage.getItem(MUSIC_KEY);
 
       if (savedSfx !== null) {
-        setSfxEnabled(savedSfx === 'true');
+        setSfxEnabled(
+          savedSfx === 'true'
+        );
       }
 
       if (savedMusic !== null) {
-        const enabled = savedMusic === 'true';
+        const enabled =
+          savedMusic === 'true';
 
         setMusicEnabled(enabled);
-        musicEnabledRef.current = enabled;
+        musicEnabledRef.current =
+          enabled;
       }
     } catch {
       // ignore
@@ -81,15 +99,18 @@ export function SoundProvider({
   }, []);
 
   // =====================================================
-  // KEEP MUSIC REF IN SYNC
+  // SYNC MUSIC STATE
   // =====================================================
+
   useEffect(() => {
-    musicEnabledRef.current = musicEnabled;
+    musicEnabledRef.current =
+      musicEnabled;
   }, [musicEnabled]);
 
   // =====================================================
   // SAVE SETTINGS
   // =====================================================
+
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -113,428 +134,496 @@ export function SoundProvider({
   }, [musicEnabled]);
 
   // =====================================================
-  // CREATE AUDIO CONTEXT
-  // Untuk SFX
+  // AUDIO CONTEXT
   // =====================================================
-  const ensureContext = useCallback(() => {
-    if (!ctxRef.current) {
-      const AudioContextClass =
-        window.AudioContext ||
-        (
-          window as unknown as {
-            webkitAudioContext?: typeof AudioContext;
-          }
-        ).webkitAudioContext;
 
-      if (!AudioContextClass) {
-        return null;
+  const ensureContext =
+    useCallback(() => {
+      if (!ctxRef.current) {
+        const AudioContextClass =
+          window.AudioContext ||
+          (
+            window as unknown as {
+              webkitAudioContext?:
+                typeof AudioContext;
+            }
+          ).webkitAudioContext;
+
+        if (!AudioContextClass) {
+          return null;
+        }
+
+        const ctx =
+          new AudioContextClass();
+
+        const masterGain =
+          ctx.createGain();
+
+        masterGain.gain.value =
+          0.55;
+
+        masterGain.connect(
+          ctx.destination
+        );
+
+        ctxRef.current = ctx;
+        masterGainRef.current =
+          masterGain;
       }
 
-      const ctx = new AudioContextClass();
-
-      const masterGain = ctx.createGain();
-
-      // Volume keseluruhan SFX
-      masterGain.gain.value = 0.55;
-
-      masterGain.connect(ctx.destination);
-
-      ctxRef.current = ctx;
-      masterGainRef.current = masterGain;
-    }
-
-    return ctxRef.current;
-  }, []);
+      return ctxRef.current;
+    }, []);
 
   // =====================================================
-  // CREATE BACKGROUND MUSIC
+  // CREATE WEBSITE MUSIC
   // =====================================================
+
   useEffect(() => {
-    const audio = new Audio(MUSIC_FILE);
+    const audio =
+      new Audio(MUSIC_FILE);
 
     audio.loop = true;
     audio.preload = 'auto';
-    audio.volume = MUSIC_VOLUME;
+    audio.volume =
+      MUSIC_VOLUME;
 
-    // Supaya browser tahu audio ini akan dipakai
-    audio.setAttribute('playsinline', '');
+    audio.setAttribute(
+      'playsinline',
+      ''
+    );
 
-    musicRef.current = audio;
+    audio.addEventListener(
+      'canplay',
+      () => {
+        console.log(
+          '🎵 Website background music loaded'
+        );
+      }
+    );
+
+    audio.addEventListener(
+      'error',
+      () => {
+        console.error(
+          '❌ Website background music error:',
+          audio.error
+        );
+      }
+    );
+
+    musicRef.current =
+      audio;
 
     return () => {
       audio.pause();
       audio.currentTime = 0;
-      musicRef.current = null;
+
+      musicRef.current =
+        null;
     };
   }, []);
 
   // =====================================================
-  // START MUSIC
+  // START WEBSITE MUSIC
   // =====================================================
-  const startMusic = useCallback(() => {
-    const music = musicRef.current;
 
-    if (!music) return;
-    if (!musicEnabledRef.current) return;
+  const startMusic =
+    useCallback(() => {
+      const music =
+        musicRef.current;
 
-    music.volume = MUSIC_VOLUME;
+      if (!music) return;
 
-    const promise = music.play();
+      if (
+        !musicEnabledRef.current
+      ) {
+        return;
+      }
 
-    if (promise !== undefined) {
-      promise.catch(() => {
-        // Browser masih memblokir autoplay.
-        // Akan dicoba lagi pada interaksi berikutnya.
-      });
-    }
-  }, []);
+      music.volume =
+        MUSIC_VOLUME;
+
+      music
+        .play()
+        .then(() => {
+          console.log(
+            '🎵 Website background music playing'
+          );
+        })
+        .catch((error) => {
+          console.warn(
+            '⚠️ Website music could not play:',
+            error
+          );
+        });
+    }, []);
+
+  // =====================================================
+  // STOP WEBSITE MUSIC
+  // =====================================================
+
+  const stopMusic =
+    useCallback(() => {
+      const music =
+        musicRef.current;
+
+      if (!music) return;
+
+      music.pause();
+
+      console.log(
+        '🔇 Website background music STOPPED'
+      );
+    }, []);
+
+  // =====================================================
+  // RESUME WEBSITE MUSIC
+  // =====================================================
+
+  const resumeMusic =
+    useCallback(() => {
+      if (
+        !musicEnabledRef.current
+      ) {
+        return;
+      }
+
+      startMusic();
+    }, [startMusic]);
 
   // =====================================================
   // UNLOCK AUDIO
   //
-  // Ini harus dipanggil ketika user melakukan interaksi
-  // seperti:
-  // - Start Journey
-  // - klik planet
-  // - klik tombol
+  // IMPORTANT:
+  // unlock() TIDAK lagi menjalankan
+  // website background music.
   // =====================================================
-  const unlock = useCallback(() => {
-    // -------------------------------
-    // Unlock SFX
-    // -------------------------------
-    const ctx = ensureContext();
 
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
+  const unlock =
+    useCallback(() => {
+      const ctx =
+        ensureContext();
 
-    unlockedRef.current = true;
-    setAudioUnlocked(true);
+      if (
+        ctx &&
+        ctx.state === 'suspended'
+      ) {
+        ctx.resume().catch(() => {});
+      }
 
-    // -------------------------------
-    // Start background music
-    // -------------------------------
-    if (musicEnabledRef.current) {
-      startMusic();
-    }
-  }, [ensureContext, startMusic]);
+      unlockedRef.current =
+        true;
 
-  // =====================================================
-  // KEEP MUSIC IN SYNC
-  // =====================================================
-  useEffect(() => {
-    const music = musicRef.current;
-
-    if (!music) return;
-
-    music.volume = MUSIC_VOLUME;
-
-    if (!musicEnabled) {
-      music.pause();
-      return;
-    }
-
-    if (unlockedRef.current) {
-      startMusic();
-    }
-  }, [
-    musicEnabled,
-    audioUnlocked,
-    startMusic,
-  ]);
+      console.log(
+        '🔓 Audio unlocked'
+      );
+    }, [ensureContext]);
 
   // =====================================================
   // PLAY SFX TONE
   // =====================================================
-  const playTone = useCallback(
-    (
-      frequency: number,
-      duration: number,
-      type: OscillatorType,
-      volume: number,
-      delay = 0
-    ) => {
-      if (!sfxEnabled) return;
 
-      const ctx = ensureContext();
+  const playTone =
+    useCallback(
+      (
+        frequency: number,
+        duration: number,
+        type: OscillatorType,
+        volume: number,
+        delay = 0
+      ) => {
+        if (!sfxEnabled) return;
 
-      if (!ctx) return;
+        const ctx =
+          ensureContext();
 
-      if (ctx.state === 'suspended') {
-        ctx.resume().catch(() => {});
-      }
+        if (!ctx) return;
 
-      const now = ctx.currentTime + delay;
+        if (
+          ctx.state === 'suspended'
+        ) {
+          ctx.resume().catch(() => {});
+        }
 
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
+        const now =
+          ctx.currentTime +
+          delay;
 
-      oscillator.type = type;
+        const oscillator =
+          ctx.createOscillator();
 
-      oscillator.frequency.setValueAtTime(
-        frequency,
-        now
-      );
+        const gain =
+          ctx.createGain();
 
-      gain.gain.setValueAtTime(
-        0.0001,
-        now
-      );
+        oscillator.type =
+          type;
 
-      gain.gain.linearRampToValueAtTime(
-        volume,
-        now + 0.02
-      );
+        oscillator.frequency.setValueAtTime(
+          frequency,
+          now
+        );
 
-      gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        now + duration
-      );
+        gain.gain.setValueAtTime(
+          0.0001,
+          now
+        );
 
-      oscillator.connect(gain);
+        gain.gain.linearRampToValueAtTime(
+          volume,
+          now + 0.02
+        );
 
-      gain.connect(
-        masterGainRef.current ??
-          ctx.destination
-      );
+        gain.gain.exponentialRampToValueAtTime(
+          0.001,
+          now + duration
+        );
 
-      oscillator.start(now);
+        oscillator.connect(gain);
 
-      oscillator.stop(
-        now + duration + 0.05
-      );
-    },
-    [sfxEnabled, ensureContext]
-  );
+        gain.connect(
+          masterGainRef.current ??
+            ctx.destination
+        );
+
+        oscillator.start(now);
+
+        oscillator.stop(
+          now +
+            duration +
+            0.05
+        );
+      },
+      [
+        sfxEnabled,
+        ensureContext,
+      ]
+    );
 
   // =====================================================
   // PLAY SFX
   // =====================================================
-  const play = useCallback(
-    (type: SoundType) => {
-      // User melakukan interaksi → unlock audio
-      if (!unlockedRef.current) {
-        unlock();
-      }
 
-      if (!sfxEnabled) return;
+  const play =
+    useCallback(
+      (type: SoundType) => {
+        if (
+          !unlockedRef.current
+        ) {
+          unlock();
+        }
 
-      switch (type) {
-        // ---------------------------------------------
-        // PLANET CLICK
-        // ---------------------------------------------
-        case 'planetClick':
-          playTone(
-            880,
-            0.15,
-            'sine',
-            0.12
-          );
+        if (!sfxEnabled) return;
 
-          playTone(
-            1320,
-            0.12,
-            'sine',
-            0.06,
-            0.04
-          );
-          break;
+        switch (type) {
+          case 'planetClick':
+            playTone(
+              880,
+              0.15,
+              'sine',
+              0.12
+            );
 
-        // ---------------------------------------------
-        // ENTER PLANET
-        // ---------------------------------------------
-        case 'planetEnter':
-          playTone(
-            440,
-            0.4,
-            'sine',
-            0.08
-          );
+            playTone(
+              1320,
+              0.12,
+              'sine',
+              0.06,
+              0.04
+            );
+            break;
 
-          playTone(
-            660,
-            0.5,
-            'sine',
-            0.06,
-            0.1
-          );
+          case 'planetEnter':
+            playTone(
+              440,
+              0.4,
+              'sine',
+              0.08
+            );
 
-          playTone(
-            880,
-            0.6,
-            'sine',
-            0.04,
-            0.2
-          );
-          break;
+            playTone(
+              660,
+              0.5,
+              'sine',
+              0.06,
+              0.1
+            );
 
-        // ---------------------------------------------
-        // PLANET COMPLETE
-        // ---------------------------------------------
-        case 'planetComplete':
-          playTone(
-            523,
-            0.2,
-            'sine',
-            0.1
-          );
+            playTone(
+              880,
+              0.6,
+              'sine',
+              0.04,
+              0.2
+            );
+            break;
 
-          playTone(
-            659,
-            0.2,
-            'sine',
-            0.1,
-            0.12
-          );
+          case 'planetComplete':
+            playTone(
+              523,
+              0.2,
+              'sine',
+              0.1
+            );
 
-          playTone(
-            784,
-            0.3,
-            'sine',
-            0.1,
-            0.24
-          );
+            playTone(
+              659,
+              0.2,
+              'sine',
+              0.1,
+              0.12
+            );
 
-          playTone(
-            1047,
-            0.4,
-            'sine',
-            0.08,
-            0.36
-          );
-          break;
+            playTone(
+              784,
+              0.3,
+              'sine',
+              0.1,
+              0.24
+            );
 
-        // ---------------------------------------------
-        // RETURN TO GALAXY
-        // ---------------------------------------------
-        case 'returnGalaxy':
-          playTone(
-            660,
-            0.3,
-            'sine',
-            0.07
-          );
+            playTone(
+              1047,
+              0.4,
+              'sine',
+              0.08,
+              0.36
+            );
+            break;
 
-          playTone(
-            440,
-            0.45,
-            'sine',
-            0.05,
-            0.12
-          );
-          break;
+          case 'returnGalaxy':
+            playTone(
+              660,
+              0.3,
+              'sine',
+              0.07
+            );
 
-        // ---------------------------------------------
-        // BUTTON CLICK
-        // ---------------------------------------------
-        case 'buttonClick':
-          playTone(
-            660,
-            0.08,
-            'sine',
-            0.06
-          );
-          break;
+            playTone(
+              440,
+              0.45,
+              'sine',
+              0.05,
+              0.12
+            );
+            break;
 
-        // ---------------------------------------------
-        // CARD FLIP
-        // ---------------------------------------------
-        case 'cardFlip':
-          playTone(
-            520,
-            0.1,
-            'triangle',
-            0.07
-          );
-          break;
+          case 'buttonClick':
+            playTone(
+              660,
+              0.08,
+              'sine',
+              0.06
+            );
+            break;
 
-        // ---------------------------------------------
-        // FLOWER COLLECT
-        // ---------------------------------------------
-        case 'flowerCollect':
-          playTone(
-            700,
-            0.12,
-            'sine',
-            0.08
-          );
+          case 'cardFlip':
+            playTone(
+              520,
+              0.1,
+              'triangle',
+              0.07
+            );
+            break;
 
-          playTone(
-            1000,
-            0.15,
-            'sine',
-            0.05,
-            0.06
-          );
-          break;
-      }
-    },
-    [
-      sfxEnabled,
-      playTone,
-      unlock,
-    ]
-  );
+          case 'flowerCollect':
+            playTone(
+              700,
+              0.12,
+              'sine',
+              0.08
+            );
+
+            playTone(
+              1000,
+              0.15,
+              'sine',
+              0.05,
+              0.06
+            );
+            break;
+        }
+      },
+      [
+        sfxEnabled,
+        playTone,
+        unlock,
+      ]
+    );
 
   // =====================================================
   // TOGGLE SFX
   // =====================================================
-  const toggleSfx = useCallback(() => {
-    setSfxEnabled((previous) => !previous);
 
-    unlock();
-  }, [unlock]);
+  const toggleSfx =
+    useCallback(() => {
+      setSfxEnabled(
+        previous => !previous
+      );
+
+      unlock();
+    }, [unlock]);
 
   // =====================================================
   // TOGGLE MUSIC
   // =====================================================
-  const toggleMusic = useCallback(() => {
-    const nextEnabled =
-      !musicEnabledRef.current;
 
-    musicEnabledRef.current = nextEnabled;
-    setMusicEnabled(nextEnabled);
+  const toggleMusic =
+    useCallback(() => {
+      const music =
+        musicRef.current;
 
-    const music = musicRef.current;
+      const nextEnabled =
+        !musicEnabledRef.current;
 
-    // User interaction → audio unlocked
-    unlock();
+      musicEnabledRef.current =
+        nextEnabled;
 
-    if (!music) return;
+      setMusicEnabled(
+        nextEnabled
+      );
 
-    if (nextEnabled) {
-      music.volume = MUSIC_VOLUME;
-
-      music.play().catch(() => {});
-    } else {
-      music.pause();
-    }
-  }, [unlock]);
+      if (nextEnabled) {
+        startMusic();
+      } else {
+        music?.pause();
+      }
+    }, [startMusic]);
 
   // =====================================================
-  // CONTEXT VALUE
+  // CONTEXT
   // =====================================================
-  const value = useMemo<SoundState>(
-    () => ({
-      sfxEnabled,
-      musicEnabled,
-      toggleSfx,
-      toggleMusic,
-      play,
-      unlock,
-    }),
-    [
-      sfxEnabled,
-      musicEnabled,
-      toggleSfx,
-      toggleMusic,
-      play,
-      unlock,
-    ]
-  );
+
+  const value =
+    useMemo<SoundState>(
+      () => ({
+        sfxEnabled,
+        musicEnabled,
+
+        toggleSfx,
+        toggleMusic,
+
+        play,
+        unlock,
+
+        stopMusic,
+        resumeMusic,
+      }),
+      [
+        sfxEnabled,
+        musicEnabled,
+        toggleSfx,
+        toggleMusic,
+        play,
+        unlock,
+        stopMusic,
+        resumeMusic,
+      ]
+    );
 
   return (
-    <SoundContext.Provider value={value}>
+    <SoundContext.Provider
+      value={value}
+    >
       {children}
     </SoundContext.Provider>
   );
@@ -543,8 +632,10 @@ export function SoundProvider({
 // =====================================================
 // USE SOUND
 // =====================================================
+
 export function useSound() {
-  const ctx = useContext(SoundContext);
+  const ctx =
+    useContext(SoundContext);
 
   if (!ctx) {
     throw new Error(
