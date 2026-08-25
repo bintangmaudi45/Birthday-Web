@@ -142,7 +142,7 @@ export default function GardenMission({ onComplete }: Props) {
       ===================================================== */}
       <video
         className="absolute inset-0 h-full w-full object-cover"
-        src="/assets/garden.mp4"
+        src={`${import.meta.env.BASE_URL}assets/garden.mp4`}
         autoPlay
         loop
         muted
@@ -498,7 +498,7 @@ export default function GardenMission({ onComplete }: Props) {
               />
 
               <img
-                src="/assets/bouquet.png"
+                src={`${import.meta.env.BASE_URL}assets/bouquet.png`}
                 alt="A bouquet of flowers"
                 className="
                   relative
